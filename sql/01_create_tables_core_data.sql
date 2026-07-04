@@ -2,10 +2,10 @@ CREATE SCHEMA core;
 
 CREATE TABLE core.geolocations (
     geolocation_zip_code_prefix text PRIMARY KEY,
-    geolocation_lat double precision NOT NULL,
-    geolocation_lng double precision NOT NULL,
-    geolocation_city text NOT NULL,
-    geolocation_state text NOT NULL
+    geolocation_lat double precision ,
+    geolocation_lng double precision ,
+    geolocation_city text ,
+    geolocation_state text 
 );
 
 CREATE TABLE core.customers(
@@ -73,8 +73,9 @@ CREATE TABLE core.order_payments (
     FOREIGN KEY (order_id) REFERENCES core.orders(order_id)
 );
 
+
+
 CREATE TABLE core.order_reviews (
-    review_row_id bigserial PRIMARY KEY,
     review_id text NOT NULL,
     order_id text NOT NULL,
     review_score int NOT NULL,
@@ -84,3 +85,5 @@ CREATE TABLE core.order_reviews (
     review_answer_timestamp timestamp NOT NULL,
     FOREIGN KEY (order_id) REFERENCES core.orders(order_id)
 );
+
+
