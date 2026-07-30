@@ -1,29 +1,28 @@
 CREATE SCHEMA core;
 
+
 CREATE TABLE core.geolocations (
     geolocation_zip_code_prefix text PRIMARY KEY,
-    geolocation_lat double precision ,
-    geolocation_lng double precision ,
-    geolocation_city text ,
-    geolocation_state text 
+    geolocation_lat double precision,
+    geolocation_lng double precision,
+    geolocation_city text,
+    geolocation_state text
 );
 
-CREATE TABLE core.customers(
-customer_id text primary key,
-customer_unique_id text not null,
-customer_zip_code_prefix text not null,
-customer_city text not null,
-customer_state text not null,
-foreign key (customer_zip_code_prefix) references core.geolocations(geolocation_zip_code_prefix)
-)
+CREATE TABLE core.customers (
+    customer_id text PRIMARY KEY,
+    customer_unique_id text NOT NULL,
+    customer_zip_code_prefix text NOT NULL,
+    customer_city text NOT NULL,
+    customer_state text NOT NULL
+);
 
 CREATE TABLE core.sellers (
-seller_id text primary key,
-seller_zip_code_prefix text not null,
-seller_city text not null,
-seller_state text not null,
-foreign key(seller_zip_code_prefix) references core.geolocations(geolocation_zip_code_prefix)
-)
+    seller_id text PRIMARY KEY,
+    seller_zip_code_prefix text NOT NULL,
+    seller_city text NOT NULL,
+    seller_state text NOT NULL
+);
 
 CREATE TABLE core.products (
     product_id text PRIMARY KEY,
@@ -73,9 +72,8 @@ CREATE TABLE core.order_payments (
     FOREIGN KEY (order_id) REFERENCES core.orders(order_id)
 );
 
-
-
 CREATE TABLE core.order_reviews (
+    review_row_id bigserial PRIMARY KEY,
     review_id text NOT NULL,
     order_id text NOT NULL,
     review_score int NOT NULL,
