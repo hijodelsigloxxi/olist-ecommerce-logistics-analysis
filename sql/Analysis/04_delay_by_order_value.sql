@@ -1,15 +1,15 @@
 -- ============================================================
--- 03_delay_by_order_complexity.sql
--- Retrasos según la complejidad del pedido
+-- 04_delay_by_order_value.sql
+-- Retrasos según el valor económico del pedido
 -- ============================================================
 -- Objetivo:
--- Este script analiza si la complejidad del pedido se relaciona
+-- Este script analiza si el valor económico del pedido se relaciona
 -- con la probabilidad de retraso logístico.
 --
--- La complejidad se estudia a partir de tres variables:
--- - number_of_items
--- - number_of_products
--- - number_of_sellers
+-- Para ello se estudian tres variables:
+-- - total_items_value: valor total de los productos del pedido.
+-- - total_payment_value: valor total pagado por el cliente.
+-- - total_freight_value: coste total de envío asociado al pedido.
 --
 -- Tabla principal:
 -- analytics.fact_orders
@@ -17,32 +17,34 @@
 -- Notas:
 -- - Solo se consideran pedidos con order_status = 'delivered'.
 -- - is_delayed = true indica que el pedido fue entregado con retraso.
--- - Se calcula, para cada tramo de complejidad:
---   1. El número total de pedidos del tramo.
---   2. El número de pedidos retrasados del tramo.
---   3. El porcentaje de ese tramo sobre el total de pedidos retrasados.
---   4. El porcentaje de retraso dentro del propio tramo.
+-- - Se calculan dos tipos de porcentajes:
+--   1. Porcentaje del tramo económico sobre el total de pedidos retrasados.
+--   2. Porcentaje de retraso dentro del propio tramo económico.
 -- - Se utiliza NULLIF para evitar divisiones entre cero.
--- - Se utiliza ::numeric para poder redondear porcentajes con ROUND.
+-- - Se utiliza ::numeric para poder aplicar ROUND con dos decimales.
 -- ============================================================
 
 
 -- ============================================================
--- 1. Retrasos según número de ítems del pedido
+-- 1. Retrasos según valor de productos
 -- ============================================================
--- Esta consulta analiza la distribución de los pedidos retrasados
--- en función del número total de ítems incluidos en el pedido.
+-- Variable analizada:
+-- total_items_value
 --
 -- Interpretación:
--- - porcentaje_X_items_sobre_total_retrasados:
---   indica qué proporción de todos los pedidos retrasados pertenece
---   a pedidos con X ítems.
+-- Permite analizar si los pedidos con productos de mayor valor
+-- presentan una mayor o menor probabilidad de retraso.
 --
--- - porcentaje_retraso_dentro_X_items:
---   indica qué proporción de los pedidos con X ítems se retrasó.
+-- porcentaje_valor_X_sobre_total_retrasados:
+-- De todos los pedidos retrasados, qué porcentaje pertenece a ese
+-- tramo de valor de productos.
+--
+-- porcentaje_retraso_dentro_valor_X:
+-- De todos los pedidos de ese tramo de valor de productos, qué
+-- porcentaje se retrasó.
 -- ============================================================
 
-SELECT
+SELECT 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
           AND is_delayed = true
@@ -50,25 +52,28 @@ SELECT
 
 
     -- ========================================================
-    -- Pedidos con 1 ítem
+    -- Pedidos con valor entre 0 y 50
     -- ========================================================
 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
-          AND number_of_items = 1
-    ) AS total_pedidos_1_item,
+          AND total_items_value > 0
+          AND total_items_value <= 50
+    ) AS total_pedidos_valor_0a50,
 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
-          AND number_of_items = 1
           AND is_delayed = true
-    ) AS pedidos_retrasados_1_item,
+          AND total_items_value > 0
+          AND total_items_value <= 50
+    ) AS pedidos_retrasados_valor_0a50,
 
     ROUND(
         COUNT(*) FILTER (
             WHERE order_status = 'delivered'
-              AND number_of_items = 1
               AND is_delayed = true
+              AND total_items_value > 0
+              AND total_items_value <= 50
         )::numeric
         / NULLIF(
             COUNT(*) FILTER (
@@ -78,45 +83,50 @@ SELECT
             0
         ) * 100,
         2
-    ) AS porcentaje_1_item_sobre_total_retrasados,
+    ) AS porcentaje_valor_0a50_sobre_total_retrasados,
 
     ROUND(
         COUNT(*) FILTER (
             WHERE order_status = 'delivered'
-              AND number_of_items = 1
               AND is_delayed = true
+              AND total_items_value > 0
+              AND total_items_value <= 50
         )::numeric
         / NULLIF(
             COUNT(*) FILTER (
                 WHERE order_status = 'delivered'
-                  AND number_of_items = 1
+                  AND total_items_value > 0
+                  AND total_items_value <= 50
             ),
             0
         ) * 100,
         2
-    ) AS porcentaje_retraso_dentro_1_item,
+    ) AS porcentaje_retraso_dentro_valor_0a50,
 
 
     -- ========================================================
-    -- Pedidos con 2 ítems
+    -- Pedidos con valor entre 50 y 100
     -- ========================================================
 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
-          AND number_of_items = 2
-    ) AS total_pedidos_2_items,
+          AND total_items_value > 50
+          AND total_items_value <= 100
+    ) AS total_pedidos_valor_50a100,
 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
-          AND number_of_items = 2
           AND is_delayed = true
-    ) AS pedidos_retrasados_2_items,
+          AND total_items_value > 50
+          AND total_items_value <= 100
+    ) AS pedidos_retrasados_valor_50a100,
 
     ROUND(
         COUNT(*) FILTER (
             WHERE order_status = 'delivered'
-              AND number_of_items = 2
               AND is_delayed = true
+              AND total_items_value > 50
+              AND total_items_value <= 100
         )::numeric
         / NULLIF(
             COUNT(*) FILTER (
@@ -126,45 +136,50 @@ SELECT
             0
         ) * 100,
         2
-    ) AS porcentaje_2_items_sobre_total_retrasados,
+    ) AS porcentaje_valor_50a100_sobre_total_retrasados,
 
     ROUND(
         COUNT(*) FILTER (
             WHERE order_status = 'delivered'
-              AND number_of_items = 2
               AND is_delayed = true
+              AND total_items_value > 50
+              AND total_items_value <= 100
         )::numeric
         / NULLIF(
             COUNT(*) FILTER (
                 WHERE order_status = 'delivered'
-                  AND number_of_items = 2
+                  AND total_items_value > 50
+                  AND total_items_value <= 100
             ),
             0
         ) * 100,
         2
-    ) AS porcentaje_retraso_dentro_2_items,
+    ) AS porcentaje_retraso_dentro_valor_50a100,
 
 
     -- ========================================================
-    -- Pedidos con 3 ítems
+    -- Pedidos con valor entre 100 y 250
     -- ========================================================
 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
-          AND number_of_items = 3
-    ) AS total_pedidos_3_items,
+          AND total_items_value > 100
+          AND total_items_value <= 250
+    ) AS total_pedidos_valor_100a250,
 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
-          AND number_of_items = 3
           AND is_delayed = true
-    ) AS pedidos_retrasados_3_items,
+          AND total_items_value > 100
+          AND total_items_value <= 250
+    ) AS pedidos_retrasados_valor_100a250,
 
     ROUND(
         COUNT(*) FILTER (
             WHERE order_status = 'delivered'
-              AND number_of_items = 3
               AND is_delayed = true
+              AND total_items_value > 100
+              AND total_items_value <= 250
         )::numeric
         / NULLIF(
             COUNT(*) FILTER (
@@ -174,45 +189,50 @@ SELECT
             0
         ) * 100,
         2
-    ) AS porcentaje_3_items_sobre_total_retrasados,
+    ) AS porcentaje_valor_100a250_sobre_total_retrasados,
 
     ROUND(
         COUNT(*) FILTER (
             WHERE order_status = 'delivered'
-              AND number_of_items = 3
               AND is_delayed = true
+              AND total_items_value > 100
+              AND total_items_value <= 250
         )::numeric
         / NULLIF(
             COUNT(*) FILTER (
                 WHERE order_status = 'delivered'
-                  AND number_of_items = 3
+                  AND total_items_value > 100
+                  AND total_items_value <= 250
             ),
             0
         ) * 100,
         2
-    ) AS porcentaje_retraso_dentro_3_items,
+    ) AS porcentaje_retraso_dentro_valor_100a250,
 
 
     -- ========================================================
-    -- Pedidos con 4 ítems
+    -- Pedidos con valor entre 250 y 500
     -- ========================================================
 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
-          AND number_of_items = 4
-    ) AS total_pedidos_4_items,
+          AND total_items_value > 250
+          AND total_items_value <= 500
+    ) AS total_pedidos_valor_250a500,
 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
-          AND number_of_items = 4
           AND is_delayed = true
-    ) AS pedidos_retrasados_4_items,
+          AND total_items_value > 250
+          AND total_items_value <= 500
+    ) AS pedidos_retrasados_valor_250a500,
 
     ROUND(
         COUNT(*) FILTER (
             WHERE order_status = 'delivered'
-              AND number_of_items = 4
               AND is_delayed = true
+              AND total_items_value > 250
+              AND total_items_value <= 500
         )::numeric
         / NULLIF(
             COUNT(*) FILTER (
@@ -222,45 +242,47 @@ SELECT
             0
         ) * 100,
         2
-    ) AS porcentaje_4_items_sobre_total_retrasados,
+    ) AS porcentaje_valor_250a500_sobre_total_retrasados,
 
     ROUND(
         COUNT(*) FILTER (
             WHERE order_status = 'delivered'
-              AND number_of_items = 4
               AND is_delayed = true
+              AND total_items_value > 250
+              AND total_items_value <= 500
         )::numeric
         / NULLIF(
             COUNT(*) FILTER (
                 WHERE order_status = 'delivered'
-                  AND number_of_items = 4
+                  AND total_items_value > 250
+                  AND total_items_value <= 500
             ),
             0
         ) * 100,
         2
-    ) AS porcentaje_retraso_dentro_4_items,
+    ) AS porcentaje_retraso_dentro_valor_250a500,
 
 
     -- ========================================================
-    -- Pedidos con 5 o más ítems
+    -- Pedidos con valor superior a 500
     -- ========================================================
 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
-          AND number_of_items >= 5
-    ) AS total_pedidos_5_o_mas_items,
+          AND total_items_value > 500
+    ) AS total_pedidos_valor_mas_de_500,
 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
-          AND number_of_items >= 5
           AND is_delayed = true
-    ) AS pedidos_retrasados_5_o_mas_items,
+          AND total_items_value > 500
+    ) AS pedidos_retrasados_valor_mas_de_500,
 
     ROUND(
         COUNT(*) FILTER (
             WHERE order_status = 'delivered'
-              AND number_of_items >= 5
               AND is_delayed = true
+              AND total_items_value > 500
         )::numeric
         / NULLIF(
             COUNT(*) FILTER (
@@ -270,44 +292,50 @@ SELECT
             0
         ) * 100,
         2
-    ) AS porcentaje_5_o_mas_items_sobre_total_retrasados,
+    ) AS porcentaje_valor_mas_de_500_sobre_total_retrasados,
 
     ROUND(
         COUNT(*) FILTER (
             WHERE order_status = 'delivered'
-              AND number_of_items >= 5
               AND is_delayed = true
+              AND total_items_value > 500
         )::numeric
         / NULLIF(
             COUNT(*) FILTER (
                 WHERE order_status = 'delivered'
-                  AND number_of_items >= 5
+                  AND total_items_value > 500
             ),
             0
         ) * 100,
         2
-    ) AS porcentaje_retraso_dentro_5_o_mas_items
+    ) AS porcentaje_retraso_dentro_valor_mas_de_500
 
 FROM analytics.fact_orders;
 
 
 -- ============================================================
--- 2. Retrasos según número de productos distintos del pedido
+-- 2. Retrasos según valor total pagado
 -- ============================================================
--- Esta consulta analiza la distribución de los pedidos retrasados
--- en función del número de productos distintos incluidos en el pedido.
+-- Variable analizada:
+-- total_payment_value
 --
 -- Interpretación:
--- - porcentaje_X_productos_sobre_total_retrasados:
---   indica qué proporción de todos los pedidos retrasados pertenece
---   a pedidos con X productos distintos.
+-- Permite analizar si los pedidos de mayor importe total pagado
+-- presentan una mayor o menor probabilidad de retraso.
 --
--- - porcentaje_retraso_dentro_X_productos:
---   indica qué proporción de los pedidos con X productos distintos
---   se retrasó.
+-- A diferencia de total_items_value, esta variable representa el
+-- valor total pagado por el cliente.
+--
+-- porcentaje_pago_X_sobre_total_retrasados:
+-- De todos los pedidos retrasados, qué porcentaje pertenece a ese
+-- tramo de valor pagado.
+--
+-- porcentaje_retraso_dentro_pago_X:
+-- De todos los pedidos de ese tramo de valor pagado, qué porcentaje
+-- se retrasó.
 -- ============================================================
 
-SELECT
+SELECT 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
           AND is_delayed = true
@@ -315,25 +343,28 @@ SELECT
 
 
     -- ========================================================
-    -- Pedidos con 1 producto
+    -- Pedidos con valor pagado entre 0 y 50
     -- ========================================================
 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
-          AND number_of_products = 1
-    ) AS total_pedidos_1_producto,
+          AND total_payment_value > 0
+          AND total_payment_value <= 50
+    ) AS total_pedidos_pago_0a50,
 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
-          AND number_of_products = 1
           AND is_delayed = true
-    ) AS pedidos_retrasados_1_producto,
+          AND total_payment_value > 0
+          AND total_payment_value <= 50
+    ) AS pedidos_retrasados_pago_0a50,
 
     ROUND(
         COUNT(*) FILTER (
             WHERE order_status = 'delivered'
-              AND number_of_products = 1
               AND is_delayed = true
+              AND total_payment_value > 0
+              AND total_payment_value <= 50
         )::numeric
         / NULLIF(
             COUNT(*) FILTER (
@@ -343,45 +374,50 @@ SELECT
             0
         ) * 100,
         2
-    ) AS porcentaje_1_producto_sobre_total_retrasados,
+    ) AS porcentaje_pago_0a50_sobre_total_retrasados,
 
     ROUND(
         COUNT(*) FILTER (
             WHERE order_status = 'delivered'
-              AND number_of_products = 1
               AND is_delayed = true
+              AND total_payment_value > 0
+              AND total_payment_value <= 50
         )::numeric
         / NULLIF(
             COUNT(*) FILTER (
                 WHERE order_status = 'delivered'
-                  AND number_of_products = 1
+                  AND total_payment_value > 0
+                  AND total_payment_value <= 50
             ),
             0
         ) * 100,
         2
-    ) AS porcentaje_retraso_dentro_1_producto,
+    ) AS porcentaje_retraso_dentro_pago_0a50,
 
 
     -- ========================================================
-    -- Pedidos con 2 productos
+    -- Pedidos con valor pagado entre 50 y 100
     -- ========================================================
 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
-          AND number_of_products = 2
-    ) AS total_pedidos_2_productos,
+          AND total_payment_value > 50
+          AND total_payment_value <= 100
+    ) AS total_pedidos_pago_50a100,
 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
-          AND number_of_products = 2
           AND is_delayed = true
-    ) AS pedidos_retrasados_2_productos,
+          AND total_payment_value > 50
+          AND total_payment_value <= 100
+    ) AS pedidos_retrasados_pago_50a100,
 
     ROUND(
         COUNT(*) FILTER (
             WHERE order_status = 'delivered'
-              AND number_of_products = 2
               AND is_delayed = true
+              AND total_payment_value > 50
+              AND total_payment_value <= 100
         )::numeric
         / NULLIF(
             COUNT(*) FILTER (
@@ -391,45 +427,50 @@ SELECT
             0
         ) * 100,
         2
-    ) AS porcentaje_2_productos_sobre_total_retrasados,
+    ) AS porcentaje_pago_50a100_sobre_total_retrasados,
 
     ROUND(
         COUNT(*) FILTER (
             WHERE order_status = 'delivered'
-              AND number_of_products = 2
               AND is_delayed = true
+              AND total_payment_value > 50
+              AND total_payment_value <= 100
         )::numeric
         / NULLIF(
             COUNT(*) FILTER (
                 WHERE order_status = 'delivered'
-                  AND number_of_products = 2
+                  AND total_payment_value > 50
+                  AND total_payment_value <= 100
             ),
             0
         ) * 100,
         2
-    ) AS porcentaje_retraso_dentro_2_productos,
+    ) AS porcentaje_retraso_dentro_pago_50a100,
 
 
     -- ========================================================
-    -- Pedidos con 3 productos
+    -- Pedidos con valor pagado entre 100 y 250
     -- ========================================================
 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
-          AND number_of_products = 3
-    ) AS total_pedidos_3_productos,
+          AND total_payment_value > 100
+          AND total_payment_value <= 250
+    ) AS total_pedidos_pago_100a250,
 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
-          AND number_of_products = 3
           AND is_delayed = true
-    ) AS pedidos_retrasados_3_productos,
+          AND total_payment_value > 100
+          AND total_payment_value <= 250
+    ) AS pedidos_retrasados_pago_100a250,
 
     ROUND(
         COUNT(*) FILTER (
             WHERE order_status = 'delivered'
-              AND number_of_products = 3
               AND is_delayed = true
+              AND total_payment_value > 100
+              AND total_payment_value <= 250
         )::numeric
         / NULLIF(
             COUNT(*) FILTER (
@@ -439,45 +480,50 @@ SELECT
             0
         ) * 100,
         2
-    ) AS porcentaje_3_productos_sobre_total_retrasados,
+    ) AS porcentaje_pago_100a250_sobre_total_retrasados,
 
     ROUND(
         COUNT(*) FILTER (
             WHERE order_status = 'delivered'
-              AND number_of_products = 3
               AND is_delayed = true
+              AND total_payment_value > 100
+              AND total_payment_value <= 250
         )::numeric
         / NULLIF(
             COUNT(*) FILTER (
                 WHERE order_status = 'delivered'
-                  AND number_of_products = 3
+                  AND total_payment_value > 100
+                  AND total_payment_value <= 250
             ),
             0
         ) * 100,
         2
-    ) AS porcentaje_retraso_dentro_3_productos,
+    ) AS porcentaje_retraso_dentro_pago_100a250,
 
 
     -- ========================================================
-    -- Pedidos con 4 productos
+    -- Pedidos con valor pagado entre 250 y 500
     -- ========================================================
 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
-          AND number_of_products = 4
-    ) AS total_pedidos_4_productos,
+          AND total_payment_value > 250
+          AND total_payment_value <= 500
+    ) AS total_pedidos_pago_250a500,
 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
-          AND number_of_products = 4
           AND is_delayed = true
-    ) AS pedidos_retrasados_4_productos,
+          AND total_payment_value > 250
+          AND total_payment_value <= 500
+    ) AS pedidos_retrasados_pago_250a500,
 
     ROUND(
         COUNT(*) FILTER (
             WHERE order_status = 'delivered'
-              AND number_of_products = 4
               AND is_delayed = true
+              AND total_payment_value > 250
+              AND total_payment_value <= 500
         )::numeric
         / NULLIF(
             COUNT(*) FILTER (
@@ -487,45 +533,47 @@ SELECT
             0
         ) * 100,
         2
-    ) AS porcentaje_4_productos_sobre_total_retrasados,
+    ) AS porcentaje_pago_250a500_sobre_total_retrasados,
 
     ROUND(
         COUNT(*) FILTER (
             WHERE order_status = 'delivered'
-              AND number_of_products = 4
               AND is_delayed = true
+              AND total_payment_value > 250
+              AND total_payment_value <= 500
         )::numeric
         / NULLIF(
             COUNT(*) FILTER (
                 WHERE order_status = 'delivered'
-                  AND number_of_products = 4
+                  AND total_payment_value > 250
+                  AND total_payment_value <= 500
             ),
             0
         ) * 100,
         2
-    ) AS porcentaje_retraso_dentro_4_productos,
+    ) AS porcentaje_retraso_dentro_pago_250a500,
 
 
     -- ========================================================
-    -- Pedidos con 5 o más productos
+    -- Pedidos con valor pagado superior a 500
     -- ========================================================
 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
-          AND number_of_products >= 5
-    ) AS total_pedidos_5_o_mas_productos,
+          AND total_payment_value > 500
+    ) AS total_pedidos_pago_mas_de_500,
 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
-          AND number_of_products >= 5
           AND is_delayed = true
-    ) AS pedidos_retrasados_5_o_mas_productos,
+          AND total_payment_value > 500
+    ) AS pedidos_retrasados_pago_mas_de_500,
 
     ROUND(
         COUNT(*) FILTER (
             WHERE order_status = 'delivered'
-              AND number_of_products >= 5
               AND is_delayed = true
+              AND total_payment_value > 500
         )::numeric
         / NULLIF(
             COUNT(*) FILTER (
@@ -535,43 +583,47 @@ SELECT
             0
         ) * 100,
         2
-    ) AS porcentaje_5_o_mas_productos_sobre_total_retrasados,
+    ) AS porcentaje_pago_mas_de_500_sobre_total_retrasados,
 
     ROUND(
         COUNT(*) FILTER (
             WHERE order_status = 'delivered'
-              AND number_of_products >= 5
               AND is_delayed = true
+              AND total_payment_value > 500
         )::numeric
         / NULLIF(
             COUNT(*) FILTER (
                 WHERE order_status = 'delivered'
-                  AND number_of_products >= 5
+                  AND total_payment_value > 500
             ),
             0
         ) * 100,
         2
-    ) AS porcentaje_retraso_dentro_5_o_mas_productos
+    ) AS porcentaje_retraso_dentro_pago_mas_de_500
 
 FROM analytics.fact_orders;
 
 
 -- ============================================================
--- 3. Retrasos según número de vendedores del pedido
+-- 3. Retrasos según coste de envío
 -- ============================================================
--- Esta consulta analiza la distribución de los pedidos retrasados
--- en función del número de vendedores asociados al pedido.
+-- Variable analizada:
+-- total_freight_value
 --
 -- Interpretación:
--- - porcentaje_X_vendedores_sobre_total_retrasados:
---   indica qué proporción de todos los pedidos retrasados pertenece
---   a pedidos con X vendedores.
+-- Permite analizar si los pedidos con mayor coste de envío presentan
+-- una mayor o menor probabilidad de retraso.
 --
--- - porcentaje_retraso_dentro_X_vendedores:
---   indica qué proporción de los pedidos con X vendedores se retrasó.
+-- porcentaje_envio_X_sobre_total_retrasados:
+-- De todos los pedidos retrasados, qué porcentaje pertenece a ese
+-- tramo de coste de envío.
+--
+-- porcentaje_retraso_dentro_envio_X:
+-- De todos los pedidos de ese tramo de coste de envío, qué porcentaje
+-- se retrasó.
 -- ============================================================
 
-SELECT
+SELECT 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
           AND is_delayed = true
@@ -579,25 +631,28 @@ SELECT
 
 
     -- ========================================================
-    -- Pedidos con 1 vendedor
+    -- Pedidos con coste de envío entre 0 y 10
     -- ========================================================
 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
-          AND number_of_sellers = 1
-    ) AS total_pedidos_1_vendedor,
+          AND total_freight_value > 0
+          AND total_freight_value <= 10
+    ) AS total_pedidos_envio_0a10,
 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
-          AND number_of_sellers = 1
           AND is_delayed = true
-    ) AS pedidos_retrasados_1_vendedor,
+          AND total_freight_value > 0
+          AND total_freight_value <= 10
+    ) AS pedidos_retrasados_envio_0a10,
 
     ROUND(
         COUNT(*) FILTER (
             WHERE order_status = 'delivered'
-              AND number_of_sellers = 1
               AND is_delayed = true
+              AND total_freight_value > 0
+              AND total_freight_value <= 10
         )::numeric
         / NULLIF(
             COUNT(*) FILTER (
@@ -607,45 +662,50 @@ SELECT
             0
         ) * 100,
         2
-    ) AS porcentaje_1_vendedor_sobre_total_retrasados,
+    ) AS porcentaje_envio_0a10_sobre_total_retrasados,
 
     ROUND(
         COUNT(*) FILTER (
             WHERE order_status = 'delivered'
-              AND number_of_sellers = 1
               AND is_delayed = true
+              AND total_freight_value > 0
+              AND total_freight_value <= 10
         )::numeric
         / NULLIF(
             COUNT(*) FILTER (
                 WHERE order_status = 'delivered'
-                  AND number_of_sellers = 1
+                  AND total_freight_value > 0
+                  AND total_freight_value <= 10
             ),
             0
         ) * 100,
         2
-    ) AS porcentaje_retraso_dentro_1_vendedor,
+    ) AS porcentaje_retraso_dentro_envio_0a10,
 
 
     -- ========================================================
-    -- Pedidos con 2 vendedores
+    -- Pedidos con coste de envío entre 10 y 20
     -- ========================================================
 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
-          AND number_of_sellers = 2
-    ) AS total_pedidos_2_vendedores,
+          AND total_freight_value > 10
+          AND total_freight_value <= 20
+    ) AS total_pedidos_envio_10a20,
 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
-          AND number_of_sellers = 2
           AND is_delayed = true
-    ) AS pedidos_retrasados_2_vendedores,
+          AND total_freight_value > 10
+          AND total_freight_value <= 20
+    ) AS pedidos_retrasados_envio_10a20,
 
     ROUND(
         COUNT(*) FILTER (
             WHERE order_status = 'delivered'
-              AND number_of_sellers = 2
               AND is_delayed = true
+              AND total_freight_value > 10
+              AND total_freight_value <= 20
         )::numeric
         / NULLIF(
             COUNT(*) FILTER (
@@ -655,45 +715,50 @@ SELECT
             0
         ) * 100,
         2
-    ) AS porcentaje_2_vendedores_sobre_total_retrasados,
+    ) AS porcentaje_envio_10a20_sobre_total_retrasados,
 
     ROUND(
         COUNT(*) FILTER (
             WHERE order_status = 'delivered'
-              AND number_of_sellers = 2
               AND is_delayed = true
+              AND total_freight_value > 10
+              AND total_freight_value <= 20
         )::numeric
         / NULLIF(
             COUNT(*) FILTER (
                 WHERE order_status = 'delivered'
-                  AND number_of_sellers = 2
+                  AND total_freight_value > 10
+                  AND total_freight_value <= 20
             ),
             0
         ) * 100,
         2
-    ) AS porcentaje_retraso_dentro_2_vendedores,
+    ) AS porcentaje_retraso_dentro_envio_10a20,
 
 
     -- ========================================================
-    -- Pedidos con 3 vendedores
+    -- Pedidos con coste de envío entre 20 y 40
     -- ========================================================
 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
-          AND number_of_sellers = 3
-    ) AS total_pedidos_3_vendedores,
+          AND total_freight_value > 20
+          AND total_freight_value <= 40
+    ) AS total_pedidos_envio_20a40,
 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
-          AND number_of_sellers = 3
           AND is_delayed = true
-    ) AS pedidos_retrasados_3_vendedores,
+          AND total_freight_value > 20
+          AND total_freight_value <= 40
+    ) AS pedidos_retrasados_envio_20a40,
 
     ROUND(
         COUNT(*) FILTER (
             WHERE order_status = 'delivered'
-              AND number_of_sellers = 3
               AND is_delayed = true
+              AND total_freight_value > 20
+              AND total_freight_value <= 40
         )::numeric
         / NULLIF(
             COUNT(*) FILTER (
@@ -703,45 +768,50 @@ SELECT
             0
         ) * 100,
         2
-    ) AS porcentaje_3_vendedores_sobre_total_retrasados,
+    ) AS porcentaje_envio_20a40_sobre_total_retrasados,
 
     ROUND(
         COUNT(*) FILTER (
             WHERE order_status = 'delivered'
-              AND number_of_sellers = 3
               AND is_delayed = true
+              AND total_freight_value > 20
+              AND total_freight_value <= 40
         )::numeric
         / NULLIF(
             COUNT(*) FILTER (
                 WHERE order_status = 'delivered'
-                  AND number_of_sellers = 3
+                  AND total_freight_value > 20
+                  AND total_freight_value <= 40
             ),
             0
         ) * 100,
         2
-    ) AS porcentaje_retraso_dentro_3_vendedores,
+    ) AS porcentaje_retraso_dentro_envio_20a40,
 
 
     -- ========================================================
-    -- Pedidos con 4 vendedores
+    -- Pedidos con coste de envío entre 40 y 80
     -- ========================================================
 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
-          AND number_of_sellers = 4
-    ) AS total_pedidos_4_vendedores,
+          AND total_freight_value > 40
+          AND total_freight_value <= 80
+    ) AS total_pedidos_envio_40a80,
 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
-          AND number_of_sellers = 4
           AND is_delayed = true
-    ) AS pedidos_retrasados_4_vendedores,
+          AND total_freight_value > 40
+          AND total_freight_value <= 80
+    ) AS pedidos_retrasados_envio_40a80,
 
     ROUND(
         COUNT(*) FILTER (
             WHERE order_status = 'delivered'
-              AND number_of_sellers = 4
               AND is_delayed = true
+              AND total_freight_value > 40
+              AND total_freight_value <= 80
         )::numeric
         / NULLIF(
             COUNT(*) FILTER (
@@ -751,45 +821,47 @@ SELECT
             0
         ) * 100,
         2
-    ) AS porcentaje_4_vendedores_sobre_total_retrasados,
+    ) AS porcentaje_envio_40a80_sobre_total_retrasados,
 
     ROUND(
         COUNT(*) FILTER (
             WHERE order_status = 'delivered'
-              AND number_of_sellers = 4
               AND is_delayed = true
+              AND total_freight_value > 40
+              AND total_freight_value <= 80
         )::numeric
         / NULLIF(
             COUNT(*) FILTER (
                 WHERE order_status = 'delivered'
-                  AND number_of_sellers = 4
+                  AND total_freight_value > 40
+                  AND total_freight_value <= 80
             ),
             0
         ) * 100,
         2
-    ) AS porcentaje_retraso_dentro_4_vendedores,
+    ) AS porcentaje_retraso_dentro_envio_40a80,
 
 
     -- ========================================================
-    -- Pedidos con 5 o más vendedores
+    -- Pedidos con coste de envío superior a 80
     -- ========================================================
 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
-          AND number_of_sellers >= 5
-    ) AS total_pedidos_5_o_mas_vendedores,
+          AND total_freight_value > 80
+    ) AS total_pedidos_envio_mas_de_80,
 
     COUNT(*) FILTER (
         WHERE order_status = 'delivered'
-          AND number_of_sellers >= 5
           AND is_delayed = true
-    ) AS pedidos_retrasados_5_o_mas_vendedores,
+          AND total_freight_value > 80
+    ) AS pedidos_retrasados_envio_mas_de_80,
 
     ROUND(
         COUNT(*) FILTER (
             WHERE order_status = 'delivered'
-              AND number_of_sellers >= 5
               AND is_delayed = true
+              AND total_freight_value > 80
         )::numeric
         / NULLIF(
             COUNT(*) FILTER (
@@ -799,22 +871,22 @@ SELECT
             0
         ) * 100,
         2
-    ) AS porcentaje_5_o_mas_vendedores_sobre_total_retrasados,
+    ) AS porcentaje_envio_mas_de_80_sobre_total_retrasados,
 
     ROUND(
         COUNT(*) FILTER (
             WHERE order_status = 'delivered'
-              AND number_of_sellers >= 5
               AND is_delayed = true
+              AND total_freight_value > 80
         )::numeric
         / NULLIF(
             COUNT(*) FILTER (
                 WHERE order_status = 'delivered'
-                  AND number_of_sellers >= 5
+                  AND total_freight_value > 80
             ),
             0
         ) * 100,
         2
-    ) AS porcentaje_retraso_dentro_5_o_mas_vendedores
+    ) AS porcentaje_retraso_dentro_envio_mas_de_80
 
 FROM analytics.fact_orders;
