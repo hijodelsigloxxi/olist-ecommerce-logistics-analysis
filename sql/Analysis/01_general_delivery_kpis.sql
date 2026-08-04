@@ -1,23 +1,29 @@
 -- ============================================================
 -- 01_general_delivery_kpis.sql
--- General logistics performance KPIs
+-- Indicadores generales de rendimiento logístico
 -- ============================================================
--- Purpose:
--- This script calculates the main general indicators used to
--- evaluate logistics performance in the Olist marketplace.
+-- Objetivo:
+-- Este script calcula los principales indicadores generales
+-- utilizados para evaluar el rendimiento logístico del marketplace
+-- de Olist.
 --
--- Main table:
+-- Tabla principal:
 -- analytics.fact_orders
 --
--- Notes:
--- - Delay-related KPIs are calculated only for delivered orders.
--- - approval_time_days is converted to hours for better readability.
--- - delivery and delay times are kept in days.
+-- Notas:
+-- - Los indicadores relacionados con retrasos se calculan solo
+--   sobre pedidos entregados.
+-- - approval_time_days está almacenado en días, pero se convierte
+--   a horas para facilitar su interpretación.
+-- - Los tiempos de entrega y de retraso se mantienen en días.
+-- - Se utiliza NULLIF para evitar divisiones entre cero.
+-- - Se utiliza ::numeric antes de ROUND cuando el valor procede
+--   de columnas double precision.
 -- ============================================================
 
 
 -- ============================================================
--- 1. Total number of orders
+-- 1. Número total de pedidos
 -- ============================================================
 
 SELECT 
@@ -26,7 +32,7 @@ FROM analytics.fact_orders;
 
 
 -- ============================================================
--- 2. Total number of delivered orders
+-- 2. Número total de pedidos entregados
 -- ============================================================
 
 SELECT 
@@ -36,7 +42,7 @@ WHERE order_status = 'delivered';
 
 
 -- ============================================================
--- 3. Total number of delayed delivered orders
+-- 3. Número total de pedidos entregados con retraso
 -- ============================================================
 
 SELECT 
@@ -47,7 +53,7 @@ WHERE order_status = 'delivered'
 
 
 -- ============================================================
--- 4. Percentage of delayed orders over delivered orders
+-- 4. Porcentaje de pedidos retrasados sobre pedidos entregados
 -- ============================================================
 
 SELECT
@@ -77,14 +83,14 @@ FROM analytics.fact_orders;
 
 
 -- ============================================================
--- 5. Average approval time
+-- 5. Tiempo medio de aprobación
 -- ============================================================
--- The value is stored in days in fact_orders.
--- It is converted to hours to improve readability.
+-- La variable approval_time_days está almacenada en días.
+-- Se multiplica por 24 para expresar el resultado en horas.
 
 SELECT
     ROUND(
-        AVG(approval_time_days * 24),
+        AVG(approval_time_days * 24)::numeric,
         2
     ) AS avg_approval_time_hours
 FROM analytics.fact_orders
@@ -92,13 +98,13 @@ WHERE approval_time_days IS NOT NULL;
 
 
 -- ============================================================
--- 6. Average total delivery time
+-- 6. Tiempo medio total de entrega
 -- ============================================================
--- Calculated only for delivered orders.
+-- Se calcula solo para pedidos entregados.
 
 SELECT
     ROUND(
-        AVG(total_delivery_time_days),
+        AVG(total_delivery_time_days)::numeric,
         2
     ) AS avg_total_delivery_time_days
 FROM analytics.fact_orders
@@ -107,13 +113,13 @@ WHERE order_status = 'delivered'
 
 
 -- ============================================================
--- 7. Average delay days
+-- 7. Días medios de retraso
 -- ============================================================
--- Calculated only for delivered orders that were delayed.
+-- Se calcula solo para pedidos entregados que llegaron tarde.
 
 SELECT
     ROUND(
-        AVG(delay_days),
+        AVG(delay_days)::numeric,
         2
     ) AS avg_delay_days
 FROM analytics.fact_orders
@@ -123,10 +129,10 @@ WHERE order_status = 'delivered'
 
 
 -- ============================================================
--- 8. Percentage of orders delivered before estimated date
+-- 8. Porcentaje de pedidos entregados antes de la fecha estimada
 -- ============================================================
--- delay_days < 0 means the order was delivered before the
--- estimated delivery date.
+-- delay_days < 0 significa que el pedido se entregó antes de
+-- la fecha estimada de entrega.
 
 SELECT
     COUNT(*) FILTER (
@@ -155,9 +161,10 @@ FROM analytics.fact_orders;
 
 
 -- ============================================================
--- 9. Percentage of orders delivered within the expected deadline
+-- 9. Porcentaje de pedidos entregados dentro del plazo estimado
 -- ============================================================
--- delay_days <= 0 means the order was delivered on time or early.
+-- delay_days <= 0 significa que el pedido se entregó en plazo
+-- o antes de la fecha estimada.
 
 SELECT
     COUNT(*) FILTER (
@@ -186,10 +193,10 @@ FROM analytics.fact_orders;
 
 
 -- ============================================================
--- 10. General logistics KPI summary
+-- 10. Resumen general de indicadores logísticos
 -- ============================================================
--- This query combines the main indicators in a single output.
--- It can be used as the basis for a KPI card in Power BI.
+-- Esta consulta reúne los principales indicadores en una sola
+-- salida. Puede utilizarse como base para tarjetas KPI en Power BI.
 
 SELECT
     COUNT(*) AS total_orders,
@@ -220,7 +227,7 @@ SELECT
     ROUND(
         AVG(approval_time_days * 24) FILTER (
             WHERE approval_time_days IS NOT NULL
-        ),
+        )::numeric,
         2
     ) AS avg_approval_time_hours,
 
@@ -228,7 +235,7 @@ SELECT
         AVG(total_delivery_time_days) FILTER (
             WHERE order_status = 'delivered'
               AND total_delivery_time_days IS NOT NULL
-        ),
+        )::numeric,
         2
     ) AS avg_total_delivery_time_days,
 
@@ -237,7 +244,7 @@ SELECT
             WHERE order_status = 'delivered'
               AND is_delayed = true
               AND delay_days IS NOT NULL
-        ),
+        )::numeric,
         2
     ) AS avg_delay_days,
 
@@ -273,10 +280,11 @@ FROM analytics.fact_orders;
 
 
 -- ============================================================
--- 11. Create reusable view for Power BI
+-- 11. Creación de una vista reutilizable para Power BI
 -- ============================================================
--- This view stores the general logistics KPIs and can be used
--- directly as a source for Power BI cards.
+-- Esta vista almacena los principales indicadores logísticos
+-- generales y puede utilizarse directamente como fuente para
+-- tarjetas KPI en Power BI.
 
 CREATE OR REPLACE VIEW analytics.vw_general_order_performance AS
 SELECT
@@ -308,7 +316,7 @@ SELECT
     ROUND(
         AVG(approval_time_days * 24) FILTER (
             WHERE approval_time_days IS NOT NULL
-        ),
+        )::numeric,
         2
     ) AS avg_approval_time_hours,
 
@@ -316,7 +324,7 @@ SELECT
         AVG(total_delivery_time_days) FILTER (
             WHERE order_status = 'delivered'
               AND total_delivery_time_days IS NOT NULL
-        ),
+        )::numeric,
         2
     ) AS avg_total_delivery_time_days,
 
@@ -325,7 +333,7 @@ SELECT
             WHERE order_status = 'delivered'
               AND is_delayed = true
               AND delay_days IS NOT NULL
-        ),
+        )::numeric,
         2
     ) AS avg_delay_days,
 
@@ -361,7 +369,7 @@ FROM analytics.fact_orders;
 
 
 -- ============================================================
--- 12. Check created view
+-- 12. Comprobación de la vista creada
 -- ============================================================
 
 SELECT *
